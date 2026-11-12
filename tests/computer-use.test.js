@@ -47,7 +47,7 @@ test('window focus accepts a numeric handle and rejects malformed handles before
 
 test('mouse click validates bounds and emits the requested button/count', async () => {
   const runner = fakeRunner();
-  await computerUse.execute('computer_click', { x: 500, y: 300, button: 'right', click_count: 2 }, runner);
+  await computerUse.execute('computer_click', { x: 500, y: 300, coordinate_space: 'physical', button: 'right', click_count: 2 }, runner);
   assert.match(runner.calls[0].script, /Click\(500,300,1,2\)/);
   await assert.rejects(() => computerUse.execute('computer_click', { x: 999999, y: 0 }, runner), /整数/);
   await assert.rejects(() => computerUse.execute('computer_click', { x: 0, y: 0, button: 'invalid' }, runner), /button/);
@@ -78,11 +78,24 @@ test('keyboard input only permits the documented shortcut allowlist', async () =
 
 test('scroll requires paired coordinates and drag validates every coordinate', async () => {
   const runner = fakeRunner();
-  await computerUse.execute('computer_scroll', { delta: -120, x: 600, y: 400 }, runner);
+  await computerUse.execute('computer_scroll', { delta: -120, x: 600, y: 400, coordinate_space: 'physical' }, runner);
   assert.match(runner.calls[0].script, /Scroll\(-120,600,400,\$true\)/);
   await assert.rejects(() => computerUse.execute('computer_scroll', { delta: 120, x: 5 }, runner), /同时提供/);
-  await computerUse.execute('computer_drag', { from_x: 10, from_y: 20, to_x: 100, to_y: 200 }, runner);
+  await computerUse.execute('computer_drag', { from_x: 10, from_y: 20, to_x: 100, to_y: 200, coordinate_space: 'physical' }, runner);
   assert.match(runner.calls[1].script, /Drag\(10,20,100,200\)/);
+});
+
+
+test('mouse coordinates map from the returned screenshot to physical desktop pixels', async () => {
+  const runner = fakeRunner();
+  assert.equal(computerUse.recordScreenshot('node-map', {
+    x: 100, y: 50, width: 2000, height: 1000, imageWidth: 1000, imageHeight: 500,
+  }), true);
+  const mapped = computerUse.mapPoint('node-map', 100, 50);
+  assert.deepEqual(mapped, { x: 300, y: 150 });
+  await computerUse.execute('computer_click', { x: 100, y: 50 }, { ...runner, nodeId: 'node-map' });
+  assert.match(runner.calls[0].script, /Click\(300,150,0,1\)/);
+  await assert.rejects(() => computerUse.execute('computer_click', { x: 100, y: 50 }, { ...runner, nodeId: 'missing-node' }), /先调用 computer_screenshot/);
 });
 
 test('wait duration is bounded', async () => {
