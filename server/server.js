@@ -474,9 +474,10 @@ allow_list = perms.setdefault("allow", [])
 for broad_rule in ("mcp__mac-industrial", "mcp__mac-industrial__*"):
     while broad_rule in allow_list:
         allow_list.remove(broad_rule)
-safe_rule = "mcp__mac-industrial__work_sync_status"
-if safe_rule not in allow_list:
-    allow_list.append(safe_rule)
+safe_rules = ("mcp__mac-industrial__work_sync_status", "mcp__mac-industrial__computer_wait")
+for rule in safe_rules:
+    if rule not in allow_list:
+        allow_list.append(rule)
 
 # Computer Use and host execution change or inspect the interactive Windows desktop.
 # Keep each capability on an explicit approval rule on the remote Claude Code host.
