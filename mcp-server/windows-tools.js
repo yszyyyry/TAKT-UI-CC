@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const platform = require('../lib/platform');
 const cfg = require('../config');
+const computerUse = require('./computer-use');
 const { psQuote: q, psArgs } = platform;
 
 function installed(root, prefix, suffix) {
@@ -32,11 +33,11 @@ function describe(tools) {
     mac_screen_capture: '截取本机 Windows 桌面或 x,y,width,height 区域，保存 PNG 到当前节点镜像并可返回内联图片。',
     hardware_flash_firmware: '通过本机 Windows esptool、ESP-IDF export.ps1、J-Link 或 dfu-util 操作设备；需安装相应工具与驱动并指定实际端口和固件。',
   };
-  return tools.filter((t) => !t.name.startsWith('xcode_')).map((t) => {
+  return [...tools.filter((t) => !t.name.startsWith('xcode_')).map((t) => {
     const tool = { ...t, description: descriptions[t.name] || t.description.replaceAll('Mac', 'Windows').replaceAll('macOS', 'Windows 11').replaceAll('Metal', 'GPU') };
     if (t.inputSchema?.properties?.port) tool.inputSchema = { ...t.inputSchema, properties: { ...t.inputSchema.properties, port: { type: 'string', description: 'Windows 串口，例如 COM3 或 COM10' } } };
     return tool;
-  });
+  }), ...computerUse.tools];
 }
 
 async function execute(name, args, context) {
@@ -49,6 +50,9 @@ async function execute(name, args, context) {
     return result;
   }
   const ps = (script, options) => checked(platform.powershell, psArgs(script), options);
+  if (name === 'computer_screenshot') return execute('mac_screen_capture', args, context);
+  const computerResult = await computerUse.execute(name, args, { runPowerShell: ps, nodeId: node?.id || 'default' });
+  if (computerResult.handled) return computerResult;
   switch (name) {
     case 'xcode_list_devices': case 'xcode_build_and_deploy_iphone':
       throw new Error('Xcode 与 iPhone 本机构建仅支持 macOS，Windows 不提供此工具。');
@@ -92,12 +96,17 @@ async function execute(name, args, context) {
       if (region && (region.length !== 4 || region.some((n) => !Number.isFinite(n)) || region[2] <= 0 || region[3] <= 0)) throw new Error('region 应为 x,y,width,height');
       const max = Number(args.max_dimension_px ?? 1600);
       if (!Number.isFinite(max) || max < 0) throw new Error('无效截图尺寸');
-      const script = `Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; ` +
+      const script = `Add-Type -TypeDefinition ${q(computerUse.nativeSource)} -Language CSharp; [TaktComputer]::EnsureDpiAware(); Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; ` +
         (args.activate_app ? `$shell = New-Object -ComObject WScript.Shell; [void]$shell.AppActivate(${q(args.activate_app)}); Start-Sleep -Milliseconds 500; ` : '') +
         `$r = ${region ? `[Drawing.Rectangle]::new(${region.join(',')})` : '[Windows.Forms.SystemInformation]::VirtualScreen'}; $bitmap = [Drawing.Bitmap]::new($r.Width,$r.Height); $g = [Drawing.Graphics]::FromImage($bitmap); try { $g.CopyFromScreen($r.Location,[Drawing.Point]::Empty,$r.Size); ` +
         `if (${max} -gt 0 -and [Math]::Max($r.Width,$r.Height) -gt ${max}) { $scale = ${max}/[double][Math]::Max($r.Width,$r.Height); $small = [Drawing.Bitmap]::new($bitmap,[Drawing.Size]::new([Math]::Max(1,[int]($r.Width*$scale)),[Math]::Max(1,[int]($r.Height*$scale)))); try { $small.Save(${q(output)},[Drawing.Imaging.ImageFormat]::Png) } finally { $small.Dispose() } } else { $bitmap.Save(${q(output)},[Drawing.Imaging.ImageFormat]::Png) } } finally { $g.Dispose(); $bitmap.Dispose() }`;
-      await ps(script, { timeoutMs: 15000 });
-      const summary = `Windows 截图: ${output}\n远端同步路径: ${(node?.remoteWorkDir || '/root/work').replace(/\/+$/, '')}/screenshots/${name}`;
+      const metadataScript = `; $savedImage = [Drawing.Image]::FromFile(${q(output)}); try { [pscustomobject]@{ x=[int]$r.X; y=[int]$r.Y; width=[int]$r.Width; height=[int]$r.Height; imageWidth=[int]$savedImage.Width; imageHeight=[int]$savedImage.Height } | ConvertTo-Json -Compress } finally { $savedImage.Dispose() }`;
+      const captureResult = await ps(script + metadataScript, { timeoutMs: 15000 });
+      let screenshotMeta;
+      try { screenshotMeta = JSON.parse(captureResult.stdout.trim().split(/\r?\n/).pop()); }
+      catch { throw new Error('截图已生成，但无法读取坐标映射信息：' + captureResult.stdout.slice(-500)); }
+      if (!computerUse.recordScreenshot(node?.id || 'default', screenshotMeta)) throw new Error('截图坐标映射信息无效');
+      const summary = `Windows 截图已保存（${name}）。截图区域：${screenshotMeta.x},${screenshotMeta.y},${screenshotMeta.width},${screenshotMeta.height}；返回图片：${screenshotMeta.imageWidth}x${screenshotMeta.imageHeight}。后续鼠标坐标默认按这张图片换算。\n远端同步路径: ${(node?.remoteWorkDir || '/root/work').replace(/\/+$/, '')}/screenshots/${name}`;
       return done(args.return_inline_image === false ? summary : { __mcp_content: [
         { type: 'text', text: summary }, { type: 'image', data: (await fs.promises.readFile(output)).toString('base64'), mimeType: 'image/png' },
       ] });
