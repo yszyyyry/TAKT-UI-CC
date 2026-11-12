@@ -107,7 +107,7 @@ test('wait duration is bounded', async () => {
 
 test('Windows native Computer Use bridge compiles and enumerates windows', { skip: !platform.isWindows }, () => {
   const { spawnSync } = require('node:child_process');
-  const script = "Add-Type -TypeDefinition " + platform.psQuote(computerUse.nativeSource) + " -Language CSharp; [TaktComputer]::GetWindows() | Out-Null; 'ok'";
+  const script = "Add-Type -TypeDefinition " + platform.psQuote(computerUse.nativeSource) + " -Language CSharp; [TaktComputer]::EnsureDpiAware(); [TaktComputer]::GetWindows() | Out-Null; 'ok'";
   const result = spawnSync(platform.powershell, platform.psArgs(script), {
     encoding: 'utf8',
     windowsHide: true,
