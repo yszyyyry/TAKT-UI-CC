@@ -1,6 +1,6 @@
 # MCP tools
 
-**Windows 11:** 30 tools are exposed; `xcode_list_devices` and `xcode_build_and_deploy_iphone` are excluded. `mac_` names remain compatible but execute on Windows: host commands use PowerShell, serial ports use COM names, screenshots use System.Drawing, and the Computer Use group adds native mouse, keyboard, window and wait actions. Optional application paths and Windows flashing setup are documented in [WINDOWS11.md](WINDOWS11.md). The macOS-specific dependency paths in the table below apply to macOS only.
+**Windows 11:** 31 tools are exposed; `xcode_list_devices` and `xcode_build_and_deploy_iphone` are excluded. `mac_` names remain compatible but execute on Windows: host commands use PowerShell, serial ports use COM names, screenshots use System.Drawing, and the Computer Use group adds native mouse, keyboard, window and wait actions. Optional application paths and Windows flashing setup are documented in [WINDOWS11.md](WINDOWS11.md). The macOS-specific dependency paths in the table below apply to macOS only.
 
 The local MCP server (`mcp-server/server.js`) exposes 23 base tools on macOS and **30 tools on Windows 11** (including the nine Computer Use tools) to Claude Code running on your VPS. Server name in Claude: `mac-industrial` (tools appear as `mcp__mac-industrial__<tool>`).
 
@@ -43,6 +43,7 @@ The Windows adapter additionally exposes these tools to the remote Claude Code s
 | `computer_screenshot` | Reuses the Windows desktop capture path and returns an inline image |
 | `computer_get_windows` | Lists visible top-level windows, titles, process names and bounds |
 | `computer_focus_window` | Restores and focuses a window by handle |
+| `computer_move_mouse` | Moves the pointer without clicking, for hover menus and tooltips |
 | `computer_click` | Left/right/middle click or double-click; screenshot-image coordinates are automatically mapped to physical screen coordinates |
 | `computer_type_text` | Types text into the foreground window |
 | `computer_press_key` | Sends an explicit allowlisted shortcut or key |
