@@ -19,7 +19,7 @@ A connected node can call every MCP tool: render in Blender, flash firmware, tak
 
 - Only connect machines and accounts you fully trust.
 - Don't connect shared / multi-user servers unless you accept that other users with shell access could use the tunnel (the token is only readable by the SSH user, but root can read everything).
-- Keep all `computer_*` tools and `mac_screen_capture` on **ask**. Keep `mac_host_exec` on **ask** unless you are on a dedicated, trusted box.
+- Keep all desktop-inspection and desktop-input `computer_*` tools plus `mac_screen_capture` on **ask**. The no-op `computer_wait` helper is the only Computer Use tool pre-approved by default. Keep `mac_host_exec` on **ask** unless you are on a dedicated, trusted box.
 - Computer Use cannot operate the lock screen or UAC secure desktop; keep the Windows session unlocked only when you intentionally want remote control.
 
 ## Hardening checklist
