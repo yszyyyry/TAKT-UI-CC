@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const computerUse = require('../mcp-server/computer-use');
 const windowsTools = require('../mcp-server/windows-tools');
+const platform = require('../lib/platform');
 
 function fakeRunner(stdout = '') {
   const calls = [];
@@ -89,4 +90,15 @@ test('wait duration is bounded', async () => {
   const result = await computerUse.execute('computer_wait', { seconds: 0.1 }, runner);
   assert.equal(result.handled, true);
   await assert.rejects(() => computerUse.execute('computer_wait', { seconds: 11 }, runner), /0.1 到 10/);
+});
+
+test('Windows native Computer Use bridge compiles and enumerates windows', { skip: !platform.isWindows }, () => {
+  const { spawnSync } = require('node:child_process');
+  const script = "Add-Type -TypeDefinition " + platform.psQuote(computerUse.nativeSource) + " -Language CSharp; [TaktComputer]::GetWindows() | Out-Null; 'ok'";
+  const result = spawnSync(platform.powershell, platform.psArgs(script), {
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 20000,
+  });
+  assert.equal(result.status, 0, result.stderr || result.error?.message || 'PowerShell native bridge compile failed');
 });
