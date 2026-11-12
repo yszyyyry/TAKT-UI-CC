@@ -55,7 +55,7 @@ test('mouse click validates bounds and emits the requested button/count', async 
 
 test('text input escapes SendKeys control characters and limits payload size', async () => {
   const runner = fakeRunner();
-  await computerUse.execute('computer_type_text', { text: 'a+b^c%~(){}\\nnext\\t' }, runner);
+  await computerUse.execute('computer_type_text', { text: 'a+b^c%~(){}\nnext\t' }, runner);
   assert.match(runner.calls[0].script, /SendWait/);
   for (const token of ['{+}', '{^}', '{%}', '{~}', '{(}', '{)}', '{{}', '{}}', '{TAB}']) {
     assert(runner.calls[0].script.includes(token), 'missing escaped token ' + token);
