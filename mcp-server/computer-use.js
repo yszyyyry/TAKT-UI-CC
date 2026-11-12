@@ -37,7 +37,14 @@ public static class TaktComputer {
     [DllImport("user32.dll")] private static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
     [DllImport("user32.dll")] private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
     [DllImport("user32.dll")] private static extern int GetSystemMetrics(int index);
+    [DllImport("user32.dll")] private static extern bool SetProcessDpiAwarenessContext(IntPtr context);
+    [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr extra);
+
+    public static void EnsureDpiAware() {
+        try { if (SetProcessDpiAwarenessContext(new IntPtr(-4))) return; } catch {}
+        try { SetProcessDPIAware(); } catch {}
+    }
 
     public static List<TaktWindowInfo> GetWindows() {
         var result = new List<TaktWindowInfo>();
@@ -202,7 +209,7 @@ function escapeSendKeys(value) {
 }
 
 function withNative(body) {
-  return "Add-Type -TypeDefinition " + psQuote(NATIVE_SOURCE) + " -Language CSharp; " + body;
+  return "Add-Type -TypeDefinition " + psQuote(NATIVE_SOURCE) + " -Language CSharp; [TaktComputer]::EnsureDpiAware(); " + body;
 }
 
 async function execute(name, args = {}, context = {}) {
