@@ -22,17 +22,18 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { DatabaseSync } = require('node:sqlite');
-const pty = require('/opt/homebrew/lib/node_modules/@deepseek-ai/dsh/node_modules/node-pty');
-const { WebSocketServer } = require('/opt/homebrew/lib/node_modules/@deepseek-ai/dsh/node_modules/ws');
+const pty = require('node-pty');
+const { WebSocketServer } = require('ws');
+const cfg = require('../config');
 
-const PORT = Number(process.env.PORT || 3080);
-const BASE_TAKT_DIR = '/Users/will/.takt-ai';
-const KOREA_WORKSPACE_DIR = '/Users/will/Documents/Korea_Server';
-const NODES_FILE = path.join(BASE_TAKT_DIR, 'nodes.json');
-const SESSION_TITLES_FILE = path.join(BASE_TAKT_DIR, 'session-titles.json');
-const WORKBENCH_DB_FILE = path.join(BASE_TAKT_DIR, 'takt-workbench.sqlite');
-const LOCAL_WORK_DIR = path.join(BASE_TAKT_DIR, 'work');
-const DSH_WEB_LOG = path.join(BASE_TAKT_DIR, 'logs/workbench-web.log');
+const PORT = cfg.PORT;
+const BASE_TAKT_DIR = cfg.TAKT_HOME;
+const KOREA_WORKSPACE_DIR = cfg.WORKSPACE_LINK_DIR;
+const NODES_FILE = cfg.NODES_FILE;
+const SESSION_TITLES_FILE = cfg.SESSION_TITLES_FILE;
+const WORKBENCH_DB_FILE = cfg.DB_FILE;
+const LOCAL_WORK_DIR = cfg.DEFAULT_WORK_DIR;
+const DSH_WEB_LOG = path.join(cfg.LOG_DIR, 'workbench-web.log');
 const PUBLIC_DIR = fs.existsSync(path.join(__dirname, 'public', 'index.html'))
   ? path.join(__dirname, 'public')
   : __dirname;
@@ -66,7 +67,7 @@ function runCmd(cmd, args, timeoutMs = 8000) {
     const child = spawn(cmd, args, {
       env: {
         ...process.env,
-        PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${process.env.PATH || ''}`,
+        PATH: process.env.PATH || '',
       },
       stdio: isBgSsh ? 'ignore' : ['ignore', 'pipe', 'pipe'],
     });
@@ -91,32 +92,18 @@ function runCmd(cmd, args, timeoutMs = 8000) {
 // ============================================================================
 // 0. Multi-Linux Node Registry & Auto-Provisioning (work, work2, work3...)
 // ============================================================================
-const DEFAULT_NODES = [
-  {
-    id: 'korea-claude',
-    name: '韩国首尔主节点',
-    badge: 'KR-1',
-    sshHost: 'korea-claude',
-    remoteWorkDir: '/root/work',
-    localWorkDir: '/Users/will/.takt-ai/work',
-    localWorkAlias: 'work',
-    syncthingFolderId: 'korea-work',
-    syncthingDeviceId: 'A6U6UBG-HA5OGV6-UWMIWSH-RTW7ZJD-3HLDTB4-CNQ3WEX-HO2L5RM-SDD4UAO',
-    enabled: true,
-  },
-  {
-    id: 'linux-work2',
-    name: 'Linux 节点 2',
-    badge: 'LX-2',
-    sshHost: '',
-    remoteWorkDir: '/root/work',
-    localWorkDir: '/Users/will/.takt-ai/work2',
-    localWorkAlias: 'work2',
-    syncthingFolderId: 'takt-work2',
-    syncthingDeviceId: '',
-    enabled: false,
-  },
-];
+const DEFAULT_NODES = [{
+  id: cfg.PRIMARY_NODE_ID,
+  name: 'Linux 节点 1',
+  badge: 'LX-1',
+  sshHost: '',
+  remoteWorkDir: '/root/work',
+  localWorkDir: LOCAL_WORK_DIR,
+  localWorkAlias: 'work',
+  syncthingFolderId: 'takt-work',
+  syncthingDeviceId: '',
+  enabled: false,
+}];
 
 function ensureNodeLocalDirAndSymlink(node) {
   try {
@@ -139,7 +126,7 @@ function ensureNodeLocalDirAndSymlink(node) {
     }
 
     // Create convenience symlink in /Users/will/Documents/Korea_Server/<alias>
-    if (fs.existsSync(KOREA_WORKSPACE_DIR)) {
+    if (KOREA_WORKSPACE_DIR && fs.existsSync(KOREA_WORKSPACE_DIR)) {
       const linkPath = path.join(KOREA_WORKSPACE_DIR, alias);
       if (!fs.existsSync(linkPath)) {
         try { fs.symlinkSync(localDir, linkPath); } catch {}
@@ -152,7 +139,7 @@ function loadNodes() {
   try {
     if (fs.existsSync(NODES_FILE)) {
       const raw = JSON.parse(fs.readFileSync(NODES_FILE, 'utf8'));
-      if (raw && Array.isArray(raw.nodes) && raw.nodes.length > 0) {
+      if (raw && Array.isArray(raw.nodes)) {
         for (const n of raw.nodes) ensureNodeLocalDirAndSymlink(n);
         return raw.nodes;
       }
@@ -1205,7 +1192,7 @@ function inferNodeFromPathOrId(inputPath = '', nodeId = '') {
     if (n.localWorkDir && (raw === n.localWorkDir || raw.startsWith(n.localWorkDir + '/'))) {
       return n;
     }
-    const docAliasDir = path.join(KOREA_WORKSPACE_DIR, n.localWorkAlias || 'work');
+    const docAliasDir = KOREA_WORKSPACE_DIR ? path.join(KOREA_WORKSPACE_DIR, n.localWorkAlias || 'work') : '';
     if (raw === docAliasDir || raw.startsWith(docAliasDir + '/')) {
       return n;
     }
