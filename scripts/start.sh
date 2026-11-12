@@ -23,6 +23,7 @@ start_one() { # name  port  script  args...
   fail "$name did not come up — see $LOG_DIR/$name.log"
 }
 
+export TAKT_REQUIRE_MCP_TOKEN="${TAKT_REQUIRE_MCP_TOKEN:-1}"
 c_green "== Starting TAKT-UI-CC =="
 start_one mcp-server "$TAKT_MCP_PORT" "$REPO_ROOT/mcp-server/server.js" --http
 start_one workbench  "$TAKT_PORT"     "$REPO_ROOT/server/server.js"
