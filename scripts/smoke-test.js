@@ -52,8 +52,13 @@ async function main() {
   assert((await (await request(ui, '/api/project-sync/status')).json()).ok);
   assert.equal((await request(mcp, '/health', undefined, { Host: 'evil.example' })).status, 403);
   const tools = (await rpc('list')).result.tools;
-  assert.equal(tools.length, process.platform === 'win32' ? 21 : 23);
-  if (process.platform === 'win32') assert(!tools.some((t) => t.name.startsWith('xcode_')));
+  assert.equal(tools.length, process.platform === 'win32' ? 30 : 23);
+  if (process.platform === 'win32') {
+    assert(!tools.some((t) => t.name.startsWith('xcode_')));
+    for (const name of ['computer_screenshot','computer_get_windows','computer_focus_window','computer_click','computer_type_text','computer_press_key','computer_scroll','computer_drag','computer_wait']) {
+      assert(tools.some((tool) => tool.name === name), 'missing Windows Computer Use tool: ' + name);
+    }
+  }
   const mirror = path.join(home, 'work');
   fs.writeFileSync(path.join(mirror, 'sandbox.html'), '<script>parent.fetch("/api/tree")</script>');
   const raw = await request(ui, '/api/raw-file?' + new URLSearchParams({ path: '/root/work/sandbox.html', nodeId: 'node-1' }));
