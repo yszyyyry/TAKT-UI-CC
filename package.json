@@ -16,7 +16,9 @@
     "doctor": "bash scripts/doctor.sh",
     "lint": "eslint .",
     "check": "node --check config.js && node --check server/server.js && node --check mcp-server/server.js && bash -n server/native-ssh-session.sh && bash -n scripts/*.sh",
-    "postinstall": "node scripts/postinstall.js"
+    "postinstall": "node scripts/postinstall.js",
+    "test": "node --test tests/**/*.test.js",
+    "test:smoke": "bash scripts/smoke-test.sh"
   },
   "dependencies": {
     "node-pty": "^1.1.0",
