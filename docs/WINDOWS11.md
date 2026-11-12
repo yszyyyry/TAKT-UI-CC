@@ -48,6 +48,12 @@ Host my-server
 
 “本机终端”直接打开 PowerShell，方便检查 SSH/工具，且不依赖服务器。普通项目终端仍连接远端 Linux。关闭本机终端不会结束远端 tmux；显式关闭远端标签仍按原逻辑结束对应 tmux 会话。
 
+## Windows Computer Use
+
+Windows exposes native Computer Use tools through the existing MCP server: screenshot, visible-window enumeration, focus, click, text entry, allowlisted keyboard shortcuts, scroll, drag and wait. The tools run in the signed-in interactive Windows desktop and require the session to be unlocked. They cannot interact with the lock screen or UAC secure desktop.
+
+Computer Use and screenshot tools are written as explicit Claude Code approval prompts when a node is provisioned. After upgrading TAKT, re-save the VPS node from the Nodes panel so its remote `~/.claude/settings.json` receives the updated per-tool approval rules. Do not expose the MCP port publicly.
+
 ## Tailscale 独立组网
 
 分别在 Windows 和服务器安装 Tailscale，完成加入同一 tailnet 的授权，然后将 SSH 配置中的 `HostName` 换为服务器的 Tailscale IP 或 MagicDNS 名称。项目不安装、不登录、不更改 Tailscale 配置；仅展示检测状态。
