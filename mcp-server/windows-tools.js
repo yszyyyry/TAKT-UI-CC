@@ -96,7 +96,7 @@ async function execute(name, args, context) {
       if (region && (region.length !== 4 || region.some((n) => !Number.isFinite(n)) || region[2] <= 0 || region[3] <= 0)) throw new Error('region 应为 x,y,width,height');
       const max = Number(args.max_dimension_px ?? 1600);
       if (!Number.isFinite(max) || max < 0) throw new Error('无效截图尺寸');
-      const script = `Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; ` +
+      const script = `Add-Type -TypeDefinition ${q(computerUse.nativeSource)} -Language CSharp; [TaktComputer]::EnsureDpiAware(); Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; ` +
         (args.activate_app ? `$shell = New-Object -ComObject WScript.Shell; [void]$shell.AppActivate(${q(args.activate_app)}); Start-Sleep -Milliseconds 500; ` : '') +
         `$r = ${region ? `[Drawing.Rectangle]::new(${region.join(',')})` : '[Windows.Forms.SystemInformation]::VirtualScreen'}; $bitmap = [Drawing.Bitmap]::new($r.Width,$r.Height); $g = [Drawing.Graphics]::FromImage($bitmap); try { $g.CopyFromScreen($r.Location,[Drawing.Point]::Empty,$r.Size); ` +
         `if (${max} -gt 0 -and [Math]::Max($r.Width,$r.Height) -gt ${max}) { $scale = ${max}/[double][Math]::Max($r.Width,$r.Height); $small = [Drawing.Bitmap]::new($bitmap,[Drawing.Size]::new([Math]::Max(1,[int]($r.Width*$scale)),[Math]::Max(1,[int]($r.Height*$scale)))); try { $small.Save(${q(output)},[Drawing.Imaging.ImageFormat]::Png) } finally { $small.Dispose() } } else { $bitmap.Save(${q(output)},[Drawing.Imaging.ImageFormat]::Png) } } finally { $g.Dispose(); $bitmap.Dispose() }`;
