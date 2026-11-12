@@ -248,4 +248,4 @@ async function execute(name, args = {}, context = {}) {
   }
 }
 
-module.exports = { tools, execute, keySequence, escapeSendKeys };
+module.exports = { tools, execute, keySequence, escapeSendKeys, nativeSource: NATIVE_SOURCE };
