@@ -45,6 +45,14 @@ test('window focus accepts a numeric handle and rejects malformed handles before
   assert.equal(runner.calls.length, 1);
 });
 
+
+test('mouse movement maps screenshot coordinates without clicking', async () => {
+  const runner = fakeRunner();
+  computerUse.recordScreenshot('node-move', { x: -1920, y: 0, width: 1920, height: 1080, imageWidth: 960, imageHeight: 540 });
+  await computerUse.execute('computer_move_mouse', { x: 480, y: 270 }, { ...runner, nodeId: 'node-move' });
+  assert.match(runner.calls[0].script, /Move\(-960,540\)/);
+});
+
 test('mouse click validates bounds and emits the requested button/count', async () => {
   const runner = fakeRunner();
   await computerUse.execute('computer_click', { x: 500, y: 300, coordinate_space: 'physical', button: 'right', click_count: 2 }, runner);
