@@ -121,17 +121,42 @@ const SPECIAL_KEYS = {
   PAGEUP: 0x21, PAGEDOWN: 0x22, INSERT: 0x2D,
 };
 
+const screenshotBounds = new Map();
+
 const tools = [
   { name: 'computer_screenshot', description: '截取 Windows 当前交互式桌面或指定区域，并将 PNG 图片直接返回给 Claude 进行视觉分析。需要已登录且未锁屏的 Windows 桌面会话。', inputSchema: { type: 'object', properties: { activate_app: { type: 'string' }, region: { type: 'string', description: 'x,y,width,height' }, max_dimension_px: { type: 'number' }, return_inline_image: { type: 'boolean' } } } },
   { name: 'computer_get_windows', description: '列出 Windows 当前可见顶层窗口，返回窗口句柄、标题、进程名和屏幕位置；不返回命令行或用户文件内容。', inputSchema: { type: 'object', properties: {} } },
   { name: 'computer_focus_window', description: '将指定窗口恢复并置于前台。窗口句柄必须来自 computer_get_windows。', inputSchema: { type: 'object', properties: { hwnd: { type: 'string', description: 'computer_get_windows 返回的窗口句柄。' } }, required: ['hwnd'] } },
-  { name: 'computer_click', description: '在 Windows 虚拟桌面坐标执行鼠标单击或双击。坐标单位为屏幕物理像素；多显示器可使用负坐标。', inputSchema: { type: 'object', properties: { x: { type: 'integer' }, y: { type: 'integer' }, button: { type: 'string', enum: ['left', 'right', 'middle'] }, click_count: { type: 'integer', enum: [1, 2] } }, required: ['x', 'y'] } },
+  { name: 'computer_click', description: '默认使用最近一次 computer_screenshot 返回图片中的像素坐标；也可指定 coordinate_space=physical 使用 Windows 虚拟桌面物理像素。', inputSchema: { type: 'object', properties: { x: { type: 'integer' }, y: { type: 'integer' }, coordinate_space: { type: 'string', enum: ['screenshot', 'physical'], description: '默认 screenshot，按最近截图图片坐标换算；physical 表示 Windows 屏幕物理像素。' }, button: { type: 'string', enum: ['left', 'right', 'middle'] }, click_count: { type: 'integer', enum: [1, 2] } }, required: ['x', 'y'] } },
   { name: 'computer_type_text', description: '向当前前台窗口输入文字。通过 Windows SendKeys 输入；换行转换为 Enter、Tab 转换为 Tab。最多 2000 个字符。', inputSchema: { type: 'object', properties: { text: { type: 'string', maxLength: 2000 } }, required: ['text'] } },
   { name: 'computer_press_key', description: '向当前前台窗口发送安全快捷键，例如 CTRL+S、CTRL+SHIFT+S、ENTER、ESC、ALT+TAB。禁止发送 CTRL+ALT+DELETE。', inputSchema: { type: 'object', properties: { keys: { type: 'string', enum: ['ENTER','TAB','ESC','BACKSPACE','DELETE','SPACE','UP','DOWN','LEFT','RIGHT','HOME','END','PAGEUP','PAGEDOWN','INSERT','CTRL+A','CTRL+C','CTRL+V','CTRL+X','CTRL+S','CTRL+Z','CTRL+Y','CTRL+SHIFT+S','CTRL+F','CTRL+P','ALT+TAB','ALT+ENTER','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'] } }, required: ['keys'] } },
-  { name: 'computer_scroll', description: '在当前鼠标位置或指定坐标滚动鼠标滚轮。delta 正数向上，负数向下。', inputSchema: { type: 'object', properties: { delta: { type: 'integer', minimum: -2400, maximum: 2400 }, x: { type: 'integer' }, y: { type: 'integer' } }, required: ['delta'] } },
-  { name: 'computer_drag', description: '执行鼠标左键拖拽，常用于拖动窗口、编辑器对象或滚动条。坐标为虚拟桌面物理像素。', inputSchema: { type: 'object', properties: { from_x: { type: 'integer' }, from_y: { type: 'integer' }, to_x: { type: 'integer' }, to_y: { type: 'integer' } }, required: ['from_x','from_y','to_x','to_y'] } },
+  { name: 'computer_scroll', description: '在当前鼠标位置或指定坐标滚动鼠标滚轮。delta 正数向上，负数向下；指定 x/y 时默认使用最近截图图片坐标。', inputSchema: { type: 'object', properties: { delta: { type: 'integer', minimum: -2400, maximum: 2400 }, x: { type: 'integer' }, y: { type: 'integer' }, coordinate_space: { type: 'string', enum: ['screenshot', 'physical'] } }, required: ['delta'] } },
+  { name: 'computer_drag', description: '执行鼠标左键拖拽。默认使用最近截图图片坐标；也可指定 coordinate_space=physical。', inputSchema: { type: 'object', properties: { from_x: { type: 'integer' }, from_y: { type: 'integer' }, to_x: { type: 'integer' }, to_y: { type: 'integer' }, coordinate_space: { type: 'string', enum: ['screenshot', 'physical'] } }, required: ['from_x','from_y','to_x','to_y'] } },
   { name: 'computer_wait', description: '等待 Windows 应用界面响应或完成刷新，等待时间限制为 0.1 至 10 秒。', inputSchema: { type: 'object', properties: { seconds: { type: 'number', minimum: 0.1, maximum: 10 } } } },
 ];
+
+function recordScreenshot(nodeId, metadata) {
+  const values = ['x', 'y', 'width', 'height', 'imageWidth', 'imageHeight'].map((key) => Number(metadata && metadata[key]));
+  if (values.some((n) => !Number.isFinite(n)) || values[2] <= 0 || values[3] <= 0 || values[4] <= 0 || values[5] <= 0) return false;
+  screenshotBounds.set(String(nodeId || 'default'), {
+    x: values[0], y: values[1], width: values[2], height: values[3], imageWidth: values[4], imageHeight: values[5],
+  });
+  return true;
+}
+
+function mapPoint(nodeId, x, y, coordinateSpace = 'screenshot') {
+  if (coordinateSpace === 'physical') return { x, y };
+  if (coordinateSpace !== 'screenshot') throw new Error('coordinate_space 只能是 screenshot 或 physical');
+  const bounds = screenshotBounds.get(String(nodeId || 'default'));
+  if (!bounds) throw new Error('请先调用 computer_screenshot，或显式指定 coordinate_space=physical');
+  if (x < 0 || y < 0 || x >= bounds.imageWidth || y >= bounds.imageHeight) {
+    throw new Error('截图坐标超出最近一次返回图片的范围');
+  }
+  return {
+    x: bounds.x + Math.round(x * bounds.width / bounds.imageWidth),
+    y: bounds.y + Math.round(y * bounds.height / bounds.imageHeight),
+  };
+}
 
 function integer(value, name, min = -32768, max = 32767) {
   const n = Number(value);
@@ -185,6 +210,7 @@ async function execute(name, args = {}, context = {}) {
   if (!names.has(name) || name === 'computer_screenshot') return { handled: false };
   if (typeof context.runPowerShell !== 'function') throw new Error('Windows PowerShell 执行器未配置');
   const run = context.runPowerShell;
+  const nodeId = context.nodeId || 'default';
 
   switch (name) {
     case 'computer_get_windows': {
@@ -201,12 +227,13 @@ async function execute(name, args = {}, context = {}) {
     }
     case 'computer_click': {
       const x = integer(args.x, 'x'), y = integer(args.y, 'y');
+      const point = mapPoint(nodeId, x, y, args.coordinate_space || 'screenshot');
       const button = ({ left: 0, right: 1, middle: 2 })[args.button || 'left'];
       if (button === undefined) throw new Error('button 只能是 left、right 或 middle');
       const count = Number(args.click_count ?? 1);
       if (![1, 2].includes(count)) throw new Error('click_count 只能是 1 或 2');
-      await run(withNative("if (-not [TaktComputer]::Click(" + x + "," + y + "," + button + "," + count + ")) { throw '坐标超出虚拟桌面范围或鼠标定位失败' }; 'clicked'"), { timeoutMs: 8000 });
-      return { handled: true, output: (count === 2 ? '已双击' : '已点击') + ' (' + x + ', ' + y + ') ' + (args.button || 'left') };
+      await run(withNative("if (-not [TaktComputer]::Click(" + point.x + "," + point.y + "," + button + "," + count + ")) { throw '坐标超出虚拟桌面范围或鼠标定位失败' }; 'clicked'"), { timeoutMs: 8000 });
+      return { handled: true, output: (count === 2 ? '已双击' : '已点击') + ' 图片/屏幕坐标 (' + x + ', ' + y + ') → 物理坐标 (' + point.x + ', ' + point.y + ') ' + (args.button || 'left') };
     }
     case 'computer_type_text': {
       if (typeof args.text !== 'string') throw new Error('text 必须是字符串');
@@ -227,15 +254,18 @@ async function execute(name, args = {}, context = {}) {
       const delta = integer(args.delta, 'delta', -2400, 2400);
       if ((args.x !== undefined && args.y === undefined) || (args.x === undefined && args.y !== undefined)) throw new Error('x 和 y 必须同时提供');
       const move = args.x !== undefined;
-      const x = move ? integer(args.x, 'x') : 0, y = move ? integer(args.y, 'y') : 0;
-      await run(withNative("if (-not [TaktComputer]::Scroll(" + delta + "," + x + "," + y + "," + (move ? '$true' : '$false') + ")) { throw '滚轮坐标超出虚拟桌面范围' }; 'scrolled'"), { timeoutMs: 8000 });
+      const rawX = move ? integer(args.x, 'x') : 0, rawY = move ? integer(args.y, 'y') : 0;
+      const point = move ? mapPoint(nodeId, rawX, rawY, args.coordinate_space || 'screenshot') : { x: 0, y: 0 };
+      await run(withNative("if (-not [TaktComputer]::Scroll(" + delta + "," + point.x + "," + point.y + "," + (move ? '$true' : '$false') + ")) { throw '滚轮坐标超出虚拟桌面范围' }; 'scrolled'"), { timeoutMs: 8000 });
       return { handled: true, output: '已滚动鼠标滚轮 delta=' + delta };
     }
     case 'computer_drag': {
-      const fromX = integer(args.from_x, 'from_x'), fromY = integer(args.from_y, 'from_y');
-      const toX = integer(args.to_x, 'to_x'), toY = integer(args.to_y, 'to_y');
-      await run(withNative("if (-not [TaktComputer]::Drag(" + fromX + "," + fromY + "," + toX + "," + toY + ")) { throw '拖拽坐标超出虚拟桌面范围或鼠标定位失败' }; 'dragged'"), { timeoutMs: 10000 });
-      return { handled: true, output: '已拖拽 (' + fromX + ', ' + fromY + ') 到 (' + toX + ', ' + toY + ')' };
+      const rawFromX = integer(args.from_x, 'from_x'), rawFromY = integer(args.from_y, 'from_y');
+      const rawToX = integer(args.to_x, 'to_x'), rawToY = integer(args.to_y, 'to_y');
+      const from = mapPoint(nodeId, rawFromX, rawFromY, args.coordinate_space || 'screenshot');
+      const to = mapPoint(nodeId, rawToX, rawToY, args.coordinate_space || 'screenshot');
+      await run(withNative("if (-not [TaktComputer]::Drag(" + from.x + "," + from.y + "," + to.x + "," + to.y + ")) { throw '拖拽坐标超出虚拟桌面范围或鼠标定位失败' }; 'dragged'"), { timeoutMs: 10000 });
+      return { handled: true, output: '已拖拽图片/屏幕坐标 (' + rawFromX + ', ' + rawFromY + ') 到 (' + rawToX + ', ' + rawToY + ')' };
     }
     case 'computer_wait': {
       const seconds = Number(args.seconds ?? 1);
@@ -248,4 +278,4 @@ async function execute(name, args = {}, context = {}) {
   }
 }
 
-module.exports = { tools, execute, keySequence, escapeSendKeys, nativeSource: NATIVE_SOURCE };
+module.exports = { tools, execute, keySequence, escapeSendKeys, nativeSource: NATIVE_SOURCE, recordScreenshot, mapPoint };
