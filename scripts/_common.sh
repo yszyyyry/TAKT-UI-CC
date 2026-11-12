@@ -22,7 +22,7 @@ fail() { printf '  \033[31m✘\033[0m %s\n' "$*"; }
 # Find a Node.js >= 22.13 (needed for the built-in node:sqlite module).
 find_node() {
   local cand
-  for cand in "${TAKT_NODE:-}" "$(command -v node 2>/dev/null)" /opt/homebrew/bin/node /usr/local/bin/node; do
+  for cand in "${TAKT_NODE:-}" "$(command -v node 2>/dev/null)" /usr/local/bin/node /usr/bin/node; do
     [ -n "$cand" ] && [ -x "$cand" ] || continue
     if "$cand" -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=13)?0:1)' 2>/dev/null; then
       echo "$cand"; return 0
