@@ -469,18 +469,41 @@ if os.path.exists(settings_path):
         st_cfg = {}
 perms = st_cfg.setdefault("permissions", {})
 allow_list = perms.setdefault("allow", [])
-if "mcp__mac-industrial" not in allow_list:
-    allow_list.append("mcp__mac-industrial")
-# mac_host_exec runs arbitrary shell commands on your local machine: keep asking unless explicitly opted in
+# A server-wide allow rule would silently pre-approve every present and future local-computer tool.
+# Remove legacy broad rules; only the read-only sync listing is pre-approved.
+for broad_rule in ("mcp__mac-industrial", "mcp__mac-industrial__*"):
+    while broad_rule in allow_list:
+        allow_list.remove(broad_rule)
+safe_rule = "mcp__mac-industrial__work_sync_status"
+if safe_rule not in allow_list:
+    allow_list.append(safe_rule)
+
+# Computer Use and host execution change or inspect the interactive Windows desktop.
+# Keep each capability on an explicit approval rule on the remote Claude Code host.
 ask_list = perms.setdefault("ask", [])
+computer_rules = [
+    "mcp__mac-industrial__computer_screenshot",
+    "mcp__mac-industrial__computer_get_windows",
+    "mcp__mac-industrial__computer_focus_window",
+    "mcp__mac-industrial__computer_click",
+    "mcp__mac-industrial__computer_type_text",
+    "mcp__mac-industrial__computer_press_key",
+    "mcp__mac-industrial__computer_scroll",
+    "mcp__mac-industrial__computer_drag",
+    "mcp__mac-industrial__mac_screen_capture",
+    "mcp__mac-industrial__mac_host_exec",
+]
+for rule in computer_rules:
+    if rule not in ask_list:
+        ask_list.append(rule)
+
+# mac_host_exec can only be auto-approved by an explicit opt-in on a dedicated trusted VPS.
 exec_rule = "mcp__mac-industrial__mac_host_exec"
 if auto_allow_host_exec:
     if exec_rule in ask_list:
         ask_list.remove(exec_rule)
     if exec_rule not in allow_list:
         allow_list.append(exec_rule)
-elif exec_rule not in ask_list:
-    ask_list.append(exec_rule)
 try:
     with open(settings_path, "w", encoding="utf-8") as f:
         json.dump(st_cfg, f, indent=2, ensure_ascii=False)
