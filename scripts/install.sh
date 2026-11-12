@@ -10,11 +10,12 @@ ok "Node.js $("$NODE_BIN" -v) ($NODE_BIN)"
 
 command -v npm >/dev/null || { fail "npm not found"; exit 1; }
 command -v ssh >/dev/null || { fail "ssh not found"; exit 1; }
+for tool in curl lsof perl python3; do command -v "$tool" >/dev/null || { fail "$tool not found"; exit 1; }; done
 ok "ssh: $(command -v ssh)"
 
 cd "$REPO_ROOT"
 echo "Installing npm dependencies (node-pty needs a prebuilt binary or Xcode command line tools)…"
-npm install --no-audit --no-fund
+npm ci --no-audit --no-fund
 ok "npm dependencies installed"
 
 "$NODE_BIN" -e "const p=require('node-pty');const t=p.spawn('/bin/echo',['ok'],{});t.onExit(()=>process.exit(0));" \
