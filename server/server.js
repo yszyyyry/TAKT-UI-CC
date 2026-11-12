@@ -486,6 +486,7 @@ computer_rules = [
     "mcp__mac-industrial__computer_screenshot",
     "mcp__mac-industrial__computer_get_windows",
     "mcp__mac-industrial__computer_focus_window",
+    "mcp__mac-industrial__computer_move_mouse",
     "mcp__mac-industrial__computer_click",
     "mcp__mac-industrial__computer_type_text",
     "mcp__mac-industrial__computer_press_key",
