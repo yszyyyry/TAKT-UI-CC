@@ -101,7 +101,7 @@ async function execute(name, args, context) {
         `$r = ${region ? `[Drawing.Rectangle]::new(${region.join(',')})` : '[Windows.Forms.SystemInformation]::VirtualScreen'}; $bitmap = [Drawing.Bitmap]::new($r.Width,$r.Height); $g = [Drawing.Graphics]::FromImage($bitmap); try { $g.CopyFromScreen($r.Location,[Drawing.Point]::Empty,$r.Size); ` +
         `if (${max} -gt 0 -and [Math]::Max($r.Width,$r.Height) -gt ${max}) { $scale = ${max}/[double][Math]::Max($r.Width,$r.Height); $small = [Drawing.Bitmap]::new($bitmap,[Drawing.Size]::new([Math]::Max(1,[int]($r.Width*$scale)),[Math]::Max(1,[int]($r.Height*$scale)))); try { $small.Save(${q(output)},[Drawing.Imaging.ImageFormat]::Png) } finally { $small.Dispose() } } else { $bitmap.Save(${q(output)},[Drawing.Imaging.ImageFormat]::Png) } } finally { $g.Dispose(); $bitmap.Dispose() }`;
       await ps(script, { timeoutMs: 15000 });
-      const summary = `Windows 截图: ${output}\n远端同步路径: ${(node?.remoteWorkDir || '/root/work').replace(/\/+$/, '')}/screenshots/${name}`;
+      const summary = `Windows 截图已保存到项目 screenshots 目录（${name}）。\n远端同步路径: ${(node?.remoteWorkDir || '/root/work').replace(/\/+$/, '')}/screenshots/${name}`;
       return done(args.return_inline_image === false ? summary : { __mcp_content: [
         { type: 'text', text: summary }, { type: 'image', data: (await fs.promises.readFile(output)).toString('base64'), mimeType: 'image/png' },
       ] });
