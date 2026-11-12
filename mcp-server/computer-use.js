@@ -228,7 +228,7 @@ async function execute(name, args = {}, context = {}) {
     case 'computer_get_windows': {
       const result = await run(withNative("$windows = [TaktComputer]::GetWindows(); ConvertTo-Json -InputObject @($windows) -Compress -Depth 4"), { timeoutMs: 12000 });
       let windows = [];
-      try { windows = result.stdout.trim() ? JSON.parse(result.stdout.trim()) : []; } catch { throw new Error('Windows 窗口列表解析失败'); }
+      try { const line = result.stdout.trim().split(/\r?\n/).pop(); windows = line ? JSON.parse(line) : []; } catch { throw new Error('Windows 窗口列表解析失败'); }
       if (!Array.isArray(windows)) windows = [windows];
       return { handled: true, output: JSON.stringify({ count: windows.length, windows }, null, 2) };
     }
