@@ -17,8 +17,11 @@ cleanup() { bash "$HERE/stop.sh" >/dev/null 2>&1; rm -rf "$TAKT_HOME"; }
 trap cleanup EXIT
 
 echo "== smoke test (data: $TAKT_HOME, ports: $TAKT_PORT/$TAKT_MCP_PORT) =="
-bash "$HERE/start.sh" >/dev/null 2>&1
-sleep 2
+bash "$HERE/start.sh" >"$TAKT_HOME/smoke-start.log" 2>&1
+for i in $(seq 1 30); do
+  curl -fsS "$UI/" >/dev/null 2>&1 && curl -fsS "$MCP/health" >/dev/null 2>&1 && break
+  sleep 1
+done
 
 expect "UI serves index.html"            200 "$(curl -s -o /dev/null -w '%{http_code}' "$UI/")"
 expect "vendored xterm.js served"        200 "$(curl -s -o /dev/null -w '%{http_code}' "$UI/vendor/xterm.js")"
