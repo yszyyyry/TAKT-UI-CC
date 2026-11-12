@@ -2,11 +2,11 @@
 
 **Windows 11:** 30 tools are exposed; `xcode_list_devices` and `xcode_build_and_deploy_iphone` are excluded. `mac_` names remain compatible but execute on Windows: host commands use PowerShell, serial ports use COM names, screenshots use System.Drawing, and the Computer Use group adds native mouse, keyboard, window and wait actions. Optional application paths and Windows flashing setup are documented in [WINDOWS11.md](WINDOWS11.md). The macOS-specific dependency paths in the table below apply to macOS only.
 
-The local MCP server (`mcp-server/server.js`) exposes **23 tools** to Claude Code running on your servers. Server name in Claude: `mac-industrial` (tools appear as `mcp__mac-industrial__<tool>`).
+The local MCP server (`mcp-server/server.js`) exposes 23 base tools on macOS and **30 tools on Windows 11** (including the nine Computer Use tools) to Claude Code running on your VPS. Server name in Claude: `mac-industrial` (tools appear as `mcp__mac-industrial__<tool>`).
 
 Every tool is **optional and degrades gracefully**: if the application isn't installed, the call returns an error message and nothing else is affected. Paths under a node's remote work dir (e.g. `/home/dev/work/part.step`) are translated to that node's local mirror automatically, and outputs written into the mirror sync back to the server.
 
-> All tools run **as you, on your Mac**. Treat them like handing Claude a terminal on your laptop. See [SECURITY.md](SECURITY.md).
+> All tools run **as you, on the local computer**. On Windows, Computer Use controls the signed-in interactive desktop. Treat the MCP connection like granting a trusted remote account access to your computer. See [SECURITY.md](SECURITY.md).
 
 | Group | Tool | What it does | Needs |
 |---|---|---|---|
