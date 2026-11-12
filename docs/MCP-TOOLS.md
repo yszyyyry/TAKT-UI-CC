@@ -1,6 +1,6 @@
 # MCP tools
 
-**Windows 11:** 21 tools are exposed; `xcode_list_devices` and `xcode_build_and_deploy_iphone` are excluded. `mac_` names remain compatible but execute on Windows: host commands use PowerShell, serial ports use COM names, and screenshots use System.Drawing. Optional application paths and Windows flashing setup are documented in [WINDOWS11.md](WINDOWS11.md). The macOS-specific dependency paths in the table below apply to macOS only.
+**Windows 11:** 30 tools are exposed; `xcode_list_devices` and `xcode_build_and_deploy_iphone` are excluded. `mac_` names remain compatible but execute on Windows: host commands use PowerShell, serial ports use COM names, screenshots use System.Drawing, and the Computer Use group adds native mouse, keyboard, window and wait actions. Optional application paths and Windows flashing setup are documented in [WINDOWS11.md](WINDOWS11.md). The macOS-specific dependency paths in the table below apply to macOS only.
 
 The local MCP server (`mcp-server/server.js`) exposes **23 tools** to Claude Code running on your servers. Server name in Claude: `mac-industrial` (tools appear as `mcp__mac-industrial__<tool>`).
 
@@ -33,6 +33,28 @@ Every tool is **optional and degrades gracefully**: if the application isn't ins
 | **Host** | `mac_screen_capture` | Screenshot of the desktop or a window; saved to `<work>/screenshots/` (synced) and returned as an image | Screen Recording permission |
 | | `mac_host_exec` | **Run any shell command on your Mac** | – (⚠ see security) |
 | | `work_sync_status` | List the local work mirror and project status | – |
+
+## Windows Computer Use
+
+The Windows adapter additionally exposes these tools to the remote Claude Code session:
+
+| Tool | What it does |
+|---|---|
+| `computer_screenshot` | Reuses the Windows desktop capture path and returns an inline image |
+| `computer_get_windows` | Lists visible top-level windows, titles, process names and bounds |
+| `computer_focus_window` | Restores and focuses a window by handle |
+| `computer_click` | Left/right/middle click or double-click at physical screen coordinates |
+| `computer_type_text` | Types text into the foreground window |
+| `computer_press_key` | Sends an explicit allowlisted shortcut or key |
+| `computer_scroll` | Scrolls at the current pointer or a specified coordinate |
+| `computer_drag` | Performs a left-button drag between screen coordinates |
+| `computer_wait` | Waits briefly for an application to respond |
+
+These tools run through Windows user32 APIs and Windows Forms; no WSL or third-party mouse automation package is required. Use `computer_get_windows` first, then focus the intended app, take a screenshot, and act in small verified steps.
+
+**Desktop-session limitations:** the Windows user must be signed in with an unlocked interactive desktop. The tools cannot operate the Windows lock screen, UAC secure desktop, or a disconnected/non-interactive session. Coordinates use virtual-desktop physical pixels, including negative coordinates on secondary monitors. Text entry uses Windows SendKeys and may depend on the active keyboard layout.
+
+Computer Use actions are configured as Claude Code approval prompts when a node is provisioned. Do not treat those prompts as a hard security boundary: anyone with shell access to the connected VPS account may be able to read its MCP token and call the reverse tunnel directly.
 
 ## Calling the server by hand
 
