@@ -125,7 +125,7 @@ const screenshotBounds = new Map();
 
 const tools = [
   { name: 'computer_screenshot', description: '截取 Windows 当前交互式桌面或指定区域，并将 PNG 图片直接返回给 Claude 进行视觉分析。需要已登录且未锁屏的 Windows 桌面会话。', inputSchema: { type: 'object', properties: { activate_app: { type: 'string' }, region: { type: 'string', description: 'x,y,width,height' }, max_dimension_px: { type: 'number' }, return_inline_image: { type: 'boolean' } } } },
-  { name: 'computer_get_windows', description: '列出 Windows 当前可见顶层窗口，返回窗口句柄、标题、进程名和屏幕位置；不返回命令行或用户文件内容。', inputSchema: { type: 'object', properties: {} } },
+  { name: 'computer_get_windows', description: '列出 Windows 当前可见顶层窗口，返回窗口句柄、标题、进程名和 Windows 虚拟桌面物理像素位置；不返回命令行或用户文件内容。', inputSchema: { type: 'object', properties: {} } },
   { name: 'computer_focus_window', description: '将指定窗口恢复并置于前台。窗口句柄必须来自 computer_get_windows。', inputSchema: { type: 'object', properties: { hwnd: { type: 'string', description: 'computer_get_windows 返回的窗口句柄。' } }, required: ['hwnd'] } },
   { name: 'computer_click', description: '默认使用最近一次 computer_screenshot 返回图片中的像素坐标；也可指定 coordinate_space=physical 使用 Windows 虚拟桌面物理像素。', inputSchema: { type: 'object', properties: { x: { type: 'integer' }, y: { type: 'integer' }, coordinate_space: { type: 'string', enum: ['screenshot', 'physical'], description: '默认 screenshot，按最近截图图片坐标换算；physical 表示 Windows 屏幕物理像素。' }, button: { type: 'string', enum: ['left', 'right', 'middle'] }, click_count: { type: 'integer', enum: [1, 2] } }, required: ['x', 'y'] } },
   { name: 'computer_type_text', description: '向当前前台窗口输入文字。通过 Windows SendKeys 输入；换行转换为 Enter、Tab 转换为 Tab。最多 2000 个字符。', inputSchema: { type: 'object', properties: { text: { type: 'string', maxLength: 2000 } }, required: ['text'] } },
