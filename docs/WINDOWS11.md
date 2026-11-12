@@ -50,7 +50,7 @@ Host my-server
 
 ## Windows Computer Use
 
-Windows exposes native Computer Use tools through the existing MCP server: screenshot, visible-window enumeration, focus, click, text entry, allowlisted keyboard shortcuts, scroll, drag and wait. The tools run in the signed-in interactive Windows desktop and require the session to be unlocked. They cannot interact with the lock screen or UAC secure desktop.
+Windows exposes native Computer Use tools through the existing MCP server: screenshot, visible-window enumeration, focus, click, text entry, allowlisted keyboard shortcuts, scroll, drag and wait. The tools run in the signed-in interactive Windows desktop and require the session to be unlocked. They cannot interact with the lock screen or UAC secure desktop. Click, drag and scroll default to the latest screenshot's image coordinates; TAKT maps those coordinates to physical pixels, including resized screenshots and cropped regions. Use `coordinate_space=physical` when supplying raw desktop coordinates.
 
 Computer Use and screenshot tools are written as explicit Claude Code approval prompts when a node is provisioned. After upgrading TAKT, re-save the VPS node from the Nodes panel so its remote `~/.claude/settings.json` receives the updated per-tool approval rules. Do not expose the MCP port publicly.
 
