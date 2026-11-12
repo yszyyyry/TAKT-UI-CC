@@ -84,6 +84,10 @@ public static class TaktComputer {
         return x >= left && y >= top && x < left + width && y < top + height;
     }
 
+    public static bool Move(int x, int y) {
+        return InVirtualScreen(x, y) && SetCursorPos(x, y);
+    }
+
     public static bool Click(int x, int y, int button, int count) {
         if (!InVirtualScreen(x, y) || !SetCursorPos(x, y)) return false;
         uint down = button == 0 ? 0x0002U : button == 1 ? 0x0008U : 0x0020U;
@@ -134,6 +138,7 @@ const tools = [
   { name: 'computer_screenshot', description: '截取 Windows 当前交互式桌面或指定区域，并将 PNG 图片直接返回给 Claude 进行视觉分析。需要已登录且未锁屏的 Windows 桌面会话。', inputSchema: { type: 'object', properties: { activate_app: { type: 'string' }, region: { type: 'string', description: 'x,y,width,height' }, max_dimension_px: { type: 'number' }, return_inline_image: { type: 'boolean' } } } },
   { name: 'computer_get_windows', description: '列出 Windows 当前可见顶层窗口，返回窗口句柄、标题、进程名和 Windows 虚拟桌面物理像素位置；不返回命令行或用户文件内容。', inputSchema: { type: 'object', properties: {} } },
   { name: 'computer_focus_window', description: '将指定窗口恢复并置于前台。窗口句柄必须来自 computer_get_windows。', inputSchema: { type: 'object', properties: { hwnd: { type: 'string', description: 'computer_get_windows 返回的窗口句柄。' } }, required: ['hwnd'] } },
+  { name: 'computer_move_mouse', description: '移动 Windows 鼠标指针但不点击，可用于悬停菜单或工具提示；默认使用最近截图图片坐标。', inputSchema: { type: 'object', properties: { x: { type: 'integer' }, y: { type: 'integer' }, coordinate_space: { type: 'string', enum: ['screenshot', 'physical'] } }, required: ['x', 'y'] } },
   { name: 'computer_click', description: '默认使用最近一次 computer_screenshot 返回图片中的像素坐标；也可指定 coordinate_space=physical 使用 Windows 虚拟桌面物理像素。', inputSchema: { type: 'object', properties: { x: { type: 'integer' }, y: { type: 'integer' }, coordinate_space: { type: 'string', enum: ['screenshot', 'physical'], description: '默认 screenshot，按最近截图图片坐标换算；physical 表示 Windows 屏幕物理像素。' }, button: { type: 'string', enum: ['left', 'right', 'middle'] }, click_count: { type: 'integer', enum: [1, 2] } }, required: ['x', 'y'] } },
   { name: 'computer_type_text', description: '向当前前台窗口输入文字。通过 Windows SendKeys 输入；换行转换为 Enter、Tab 转换为 Tab。最多 2000 个字符。', inputSchema: { type: 'object', properties: { text: { type: 'string', maxLength: 2000 } }, required: ['text'] } },
   { name: 'computer_press_key', description: '向当前前台窗口发送安全快捷键，例如 CTRL+S、CTRL+SHIFT+S、ENTER、ESC、ALT+TAB。禁止发送 CTRL+ALT+DELETE。', inputSchema: { type: 'object', properties: { keys: { type: 'string', enum: ['ENTER','TAB','ESC','BACKSPACE','DELETE','SPACE','UP','DOWN','LEFT','RIGHT','HOME','END','PAGEUP','PAGEDOWN','INSERT','CTRL+A','CTRL+C','CTRL+V','CTRL+X','CTRL+S','CTRL+Z','CTRL+Y','CTRL+SHIFT+S','CTRL+F','CTRL+P','ALT+TAB','ALT+ENTER','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'] } }, required: ['keys'] } },
@@ -231,6 +236,12 @@ async function execute(name, args = {}, context = {}) {
       const hwnd = parseHandle(args.hwnd);
       await run(withNative("if (-not [TaktComputer]::Focus([long]" + hwnd + ")) { throw '窗口不存在或 Windows 拒绝切换前台窗口' }; 'focused'"), { timeoutMs: 8000 });
       return { handled: true, output: '已请求激活窗口 ' + hwnd };
+    }
+    case 'computer_move_mouse': {
+      const x = integer(args.x, 'x'), y = integer(args.y, 'y');
+      const point = mapPoint(nodeId, x, y, args.coordinate_space || 'screenshot');
+      await run(withNative("if (-not [TaktComputer]::Move(" + point.x + "," + point.y + ")) { throw '坐标超出虚拟桌面范围或鼠标定位失败' }; 'moved'"), { timeoutMs: 8000 });
+      return { handled: true, output: '已移动鼠标到物理坐标 (' + point.x + ', ' + point.y + ')' };
     }
     case 'computer_click': {
       const x = integer(args.x, 'x'), y = integer(args.y, 'y');
