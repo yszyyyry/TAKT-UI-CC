@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const platform = require('../lib/platform');
 const cfg = require('../config');
+const computerUse = require('./computer-use');
 const { psQuote: q, psArgs } = platform;
 
 function installed(root, prefix, suffix) {
@@ -32,11 +33,11 @@ function describe(tools) {
     mac_screen_capture: '截取本机 Windows 桌面或 x,y,width,height 区域，保存 PNG 到当前节点镜像并可返回内联图片。',
     hardware_flash_firmware: '通过本机 Windows esptool、ESP-IDF export.ps1、J-Link 或 dfu-util 操作设备；需安装相应工具与驱动并指定实际端口和固件。',
   };
-  return tools.filter((t) => !t.name.startsWith('xcode_')).map((t) => {
+  return [...tools.filter((t) => !t.name.startsWith('xcode_')).map((t) => {
     const tool = { ...t, description: descriptions[t.name] || t.description.replaceAll('Mac', 'Windows').replaceAll('macOS', 'Windows 11').replaceAll('Metal', 'GPU') };
     if (t.inputSchema?.properties?.port) tool.inputSchema = { ...t.inputSchema, properties: { ...t.inputSchema.properties, port: { type: 'string', description: 'Windows 串口，例如 COM3 或 COM10' } } };
     return tool;
-  });
+  }), ...computerUse.tools];
 }
 
 async function execute(name, args, context) {
@@ -49,6 +50,9 @@ async function execute(name, args, context) {
     return result;
   }
   const ps = (script, options) => checked(platform.powershell, psArgs(script), options);
+  if (name === 'computer_screenshot') return execute('mac_screen_capture', args, context);
+  const computerResult = await computerUse.execute(name, args, { runPowerShell: ps });
+  if (computerResult.handled) return computerResult;
   switch (name) {
     case 'xcode_list_devices': case 'xcode_build_and_deploy_iphone':
       throw new Error('Xcode 与 iPhone 本机构建仅支持 macOS，Windows 不提供此工具。');
