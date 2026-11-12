@@ -267,9 +267,7 @@ async function provisionLinuxNode(node) {
   }
 
   // Establish isolated MCP reverse tunnel for this node
-  const sock = node.id === 'korea-claude'
-    ? '/Users/will/.ssh/sockets/takt-mcp-tunnel.sock'
-    : `/Users/will/.ssh/sockets/takt-mcp-tunnel-${node.id.replace(/[^a-zA-Z0-9_-]/g, '')}.sock`;
+  const sock = path.join(cfg.SSH_SOCKET_DIR, `takt-mcp-tunnel-${String(node.id).replace(/[^a-zA-Z0-9_-]/g, '')}.sock`);
 
   await runCmd('ssh', ['-S', sock, '-O', 'exit', node.sshHost], 2500);
   const tunRes = await runCmd('ssh', [
@@ -422,7 +420,7 @@ async function ensureMacMcpDaemonRunning() {
     clearTimeout(timer);
 
     if (!ok) {
-      const mcpChild = spawn(process.execPath, ['/Users/will/.takt-ai/mcp-server/server.js', '--http'], {
+      const mcpChild = spawn(process.execPath, [path.join(__dirname, '..', 'mcp-server', 'server.js'), '--http'], {
         detached: true,
         stdio: 'ignore',
         env: { ...process.env },
@@ -1089,7 +1087,7 @@ function getOrCreatePtyTab({ tabId, sessionId, title, cwd, resume, mode, nodeId,
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor',
       LANG: 'en_US.UTF-8',
-      PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${process.env.PATH || ''}`,
+      PATH: process.env.PATH || '',
     },
   });
 
@@ -1208,7 +1206,7 @@ function mapRemoteCwdToLocal(remoteCwd = '/root/work', nodeId = '') {
   const node = inferNodeFromPathOrId(remoteCwd, nodeId);
   const localBase = node.localWorkDir || LOCAL_WORK_DIR;
   const remoteBase = (node.remoteWorkDir || '/root/work').replace(/\/+$/, '') || '/root/work';
-  const docAliasBase = path.join(KOREA_WORKSPACE_DIR, node.localWorkAlias || 'work');
+  const docAliasBase = KOREA_WORKSPACE_DIR ? path.join(KOREA_WORKSPACE_DIR, node.localWorkAlias || 'work') : '';
 
   const clean = String(remoteCwd || remoteBase).trim().replace(/\/+$/, '') || remoteBase;
   if (clean === localBase || clean === remoteBase || clean === docAliasBase) {
@@ -1288,7 +1286,7 @@ function resolveAnyFilePathToLocalAndRemote(inputPath, sessionCwd = '/root/work'
     const rel = raw.slice('/root/work'.length).replace(/^\/+/, '');
     localPath = path.resolve(localBase, rel);
     remotePath = rel ? `${remoteBase}/${rel}` : remoteBase;
-  } else if (raw.startsWith('/Users/will/')) {
+  } else if (raw.startsWith(os.homedir() + path.sep)) {
     localPath = path.resolve(raw);
     remotePath = localPath;
   } else if (raw.startsWith('/')) {
