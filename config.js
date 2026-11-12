@@ -18,6 +18,7 @@ function syncthingConfigCandidates() {
     path.join(HOME, 'Library/Application Support/Syncthing/config.xml'), // macOS
     path.join(HOME, '.local/state/syncthing/config.xml'), // Linux (new)
     path.join(HOME, '.config/syncthing/config.xml'), // Linux (old)
+    path.join(process.env.APPDATA || '', 'Syncthing', 'config.xml'), // Windows
   ];
 }
 
@@ -73,7 +74,8 @@ module.exports = {
   syncthingConfigCandidates,
   findSyncthingConfig() {
     if (process.env.TAKT_SYNCTHING_CONFIG) return process.env.TAKT_SYNCTHING_CONFIG;
-    return syncthingConfigCandidates().find((p) => fs.existsSync(p)) || syncthingConfigCandidates()[0];
+    const candidates = syncthingConfigCandidates().filter(Boolean);
+    return candidates.find((p) => fs.existsSync(p)) || candidates[process.platform === 'darwin' ? 0 : process.platform === 'win32' ? candidates.length - 1 : 1] || candidates[0];
   },
   SYNCTHING_URL: process.env.TAKT_SYNCTHING_URL || 'http://127.0.0.1:8384',
 
