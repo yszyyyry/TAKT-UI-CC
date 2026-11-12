@@ -50,7 +50,7 @@ test('mouse click validates bounds and emits the requested button/count', async 
   await computerUse.execute('computer_click', { x: 500, y: 300, coordinate_space: 'physical', button: 'right', click_count: 2 }, runner);
   assert.match(runner.calls[0].script, /Click\(500,300,1,2\)/);
   await assert.rejects(() => computerUse.execute('computer_click', { x: 999999, y: 0 }, runner), /整数/);
-  await assert.rejects(() => computerUse.execute('computer_click', { x: 0, y: 0, button: 'invalid' }, runner), /button/);
+  await assert.rejects(() => computerUse.execute('computer_click', { x: 0, y: 0, coordinate_space: 'physical', button: 'invalid' }, runner), /button/);
   assert.equal(runner.calls.length, 1);
 });
 
