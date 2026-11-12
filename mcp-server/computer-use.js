@@ -114,6 +114,7 @@ public static class TaktComputer {
 `;
 
 const MODIFIERS = { CTRL: 0x11, ALT: 0x12, SHIFT: 0x10 };
+const ALLOWED_SHORTCUTS = new Set(['ENTER','TAB','ESC','BACKSPACE','DELETE','SPACE','UP','DOWN','LEFT','RIGHT','HOME','END','PAGEUP','PAGEDOWN','INSERT','CTRL+A','CTRL+C','CTRL+V','CTRL+X','CTRL+S','CTRL+Z','CTRL+Y','CTRL+SHIFT+S','CTRL+F','CTRL+P','ALT+TAB','ALT+ENTER','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12']);
 const SPECIAL_KEYS = {
   ENTER: 0x0D, TAB: 0x09, ESC: 0x1B, BACKSPACE: 0x08, DELETE: 0x2E, SPACE: 0x20,
   UP: 0x26, DOWN: 0x28, LEFT: 0x25, RIGHT: 0x27, HOME: 0x24, END: 0x23,
@@ -147,7 +148,9 @@ function parseHandle(value) {
 }
 
 function keySequence(value) {
-  const parts = String(value || '').trim().toUpperCase().split('+');
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!ALLOWED_SHORTCUTS.has(normalized)) throw new Error('不支持的快捷键：' + normalized);
+  const parts = normalized.split('+');
   if (parts.length < 1 || parts.length > 3 || parts.some((p) => !p)) throw new Error('快捷键格式无效');
   const modifiers = [];
   let main = '';
